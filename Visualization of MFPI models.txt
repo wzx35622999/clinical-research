@@ -1,0 +1,35 @@
+#Description: MFPI is a useful method to achieve accurate evaluation of the interaction between treatment effect and continous covarites. 
+However, methods for visualization of MFPI models is still lacking.
+We developed a simple method to visualize MFPI models.
+
+#Libraries needed
+library(foreign)
+library(rms)
+library(survival)
+library ("smoothHR")
+
+#Read data; RT2: treatment group; LNR: continuous covariate affecting treatment effect
+bc<-read.csv("I:/csv/786r.csv")
+
+#Functional form of LNR according to treatment group
+bc<-read.csv("I:/csv/786r.csv")
+bc<-bc[bc$RT2==0,]#Repeat for RT2=1
+df2 <-dfmacox (time= "time" , status= "exitus", nl.predictors = c ("LNR"),smoother = "ns", method = "BIC",data = bc)
+df2$df
+f <- mfp(Surv(time,exitus) ~ fp(LNR, df = df2$df, select = 0.05), family = cox, data = bc,method = c("efron", "breslow"),maxits = 5)
+f
+
+#Development of Cox model including the dual-form interaction term
+bc$b1<-bc$pLNR*1.3646-0.4314956 #transformation to ensure comparability with b2 according to the minimum and maximum of LNR
+bc$b2<-bc$LNR
+bc$b1[bc$RT2==1]<-0
+bc$b2[bc$RT2==0]<-0
+bc$br<-bc$b1+bc$b2
+rs<-cph(Surv(time,exitus==1)~RT2*br,data=bc,x=T,y=T,surv=T)
+
+#Model visualization
+ddist<-datadist(bc)
+options(datadist="ddist")
+surv<-Survival(rs)
+nom<-nomogram(rs,fun=list(function(x)surv(36,x),function(x)surv(60,x)),fun.at = c(0.95,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1,0.05), funlabel=c("3-year OS","5-year OS"),lp=0)
+plot(nom)
